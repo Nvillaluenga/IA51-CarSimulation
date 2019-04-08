@@ -1,0 +1,209 @@
+/** 
+ * 
+ */
+package carSimulation
+
+import io.sarl.core.AgentKilled
+import io.sarl.core.AgentSpawned
+import io.sarl.core.ContextJoined
+import io.sarl.core.ContextLeft
+import io.sarl.core.Destroy
+import io.sarl.core.Initialize
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Logging
+import io.sarl.core.MemberJoined
+import io.sarl.core.MemberLeft
+import java.util.ArrayList
+import java.util.UUID
+import io.sarl.core.Lifecycle
+import java.util.concurrent.TimeUnit
+
+/** 
+ * @author Nacho
+ * 
+ */
+event sendNode {
+	val originNode : UUID
+
+	new(o : UUID) {
+		this.originNode = o;
+	}
+}
+
+event createEdge {
+	val destNodeObj : NodeObj
+
+	new(nodeObj : NodeObj) {
+		this.destNodeObj = nodeObj;
+	}
+}
+
+agent Node {
+	uses Logging, DefaultContextInteractions
+	
+	var nodeObj: NodeObj;
+	
+	
+	on Initialize {	
+		this.nodeObj = new NodeObj(this.getID(), occurrence.parameters.get(0) as Integer, occurrence.parameters.get(1) as Integer)
+		info("The agent "+ this.getID() +" was started.")
+	}
+	on sendNode {
+		var ev = new createEdge(this.nodeObj)
+		emit(ev) [it.UUID == occurrence.originNode]
+		
+	}
+	on createEdge {
+		var e = new Edge(this.nodeObj, occurrence.destNodeObj)
+		info("Edge created:\n edge value: "+e.getVal()+"\n edge objects: "+e.getObjs())
+		
+	}
+		
+	on Destroy {
+		// Event trigger when the agent is destroyed from the system.
+		// You should put all the resource releasing statements in this block of code.
+		info("The agent was stopped.")
+	}
+
+	on AgentSpawned {
+		// A new agent has been spawned in our context.
+	}
+
+	on AgentKilled {
+		// A new agent has been killed in our context.
+	}
+
+	on ContextJoined {
+		// Event trigger when an agent of the level joins a shared context.
+		// Sent to a agent of the same level.
+	}
+
+	on ContextLeft {
+		// Event trigger when an agent of the level jleaves a shared context.
+		// Sent to a agent of the same level.
+	}
+
+	on MemberJoined {
+		// Event trigger when an agent joins one of our shared super-holons.
+		// Sent to all members of the considered super-holon.
+	}
+
+	on MemberLeft {
+		// Event trigger when an agent leaves one of our shared super-holons.
+		// Sent to all members of the considered super-holon.
+	}
+}
+class NodeObj{
+	val ID : UUID;
+	val x : int;
+	val y : int;
+	var edges : ArrayList<Edge> = newArrayList;
+	
+	package new (ID :UUID, x: int, y:int){
+		this.ID = ID;
+		this.x = x;
+		this.y = y;
+	}
+
+	def addEdge(edge : Edge) : boolean {
+		return edges.add(edge)
+	}
+
+	def distanceNode(node : NodeObj) : double {
+		var x : double;
+		var y : double;
+		var dis : double;
+
+		x = (this.x - node.x);
+		y = (this.y - node.y);
+		dis = Math.sqrt((x*x + y*y)) as double;
+		return dis
+	}
+		
+	def getx() : int{
+		return this.x
+	}
+	
+	def gety() : int{
+		return this.y
+	}
+}
+
+class Edge{
+	val origin : NodeObj;
+	val destination : NodeObj;
+	var maxSpeed: int;
+	var value: double;
+	var objects : ArrayList<Car> = newArrayList;
+
+	package new (orig : NodeObj, dest : NodeObj) {
+		var aux : double
+		aux = orig.distanceNode(dest);
+		this.maxSpeed = 50;
+		this.value = aux
+		this.origin = orig
+		this.destination = dest
+		this.origin.addEdge(this)
+	}
+
+	package new (orig : NodeObj, dest : NodeObj, value : double, max: int) {
+		this.maxSpeed = max;
+		this.value = value;
+		this.origin = orig
+		this.destination = dest
+		this.origin.addEdge(this)
+	}
+	
+	def getDest() : NodeObj{
+		return this.destination
+	}
+	def getObjs() : ArrayList<Car>{
+		return this.objects
+	}
+	def getVal() : double{
+		return this.value
+	}
+	def removeObjs(car : Car){
+		for(var i = 0 ; i < this.objects.size(); i++){
+			if (this.objects.get(i) == car ){
+				this.objects.remove(i)
+			}
+		}
+	}
+	def addObjs(car : Car){
+		this.objects.add(car)
+	}
+}
+agent BootAgent {	
+	uses Lifecycle, DefaultContextInteractions, Logging
+	
+	def createEdge(nOrigin: UUID, nDest : UUID){
+		var evt = new sendNode(nOrigin)
+		evt.emit[it.UUID == nDest]
+	}
+	
+	on Initialize {
+		var n1 = spawn(typeof(Node), 0, 0)
+		var n2 = spawn(typeof(Node), 100, 0)
+		var n3 = spawn(typeof(Node), 100, 100)
+		var n4 = spawn(typeof(Node), 0, 100)
+		//TimeUnit.SECONDS.sleep(1);		
+		while (defaultSpace.participants.size < 4){
+			info("waiting...")
+			TimeUnit.SECONDS.sleep(1);
+		}
+		createEdge(n1, n2)
+		createEdge(n2, n3)
+		createEdge(n3, n4)
+		createEdge(n4, n1)
+		createEdge(n1, n3)
+		
+		
+		
+		killMe	
+		
+	}
+	
+	
+}
+

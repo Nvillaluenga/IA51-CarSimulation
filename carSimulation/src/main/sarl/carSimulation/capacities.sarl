@@ -1,0 +1,13 @@
+package carSimulation
+
+capacity nodeManager{
+	
+	def getNode : NodeObj
+}
+skill nodeManagerSkill implements nodeManager{
+	
+	def getNode : NodeObj {
+		throw new UnsupportedOperationException("TODO: auto-generated method stub")
+	}
+	
+}
